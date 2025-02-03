@@ -77,12 +77,12 @@ fun MainScreen(navController: NavHostController) {
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.fillMaxWidth()
         ) {
-            // Login Button
+            // Login Button (Now correctly labeled)
             Button(
                 onClick = { navController.navigate("LoginScreen") },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(text = "Login With Google")
+                Text(text = "Login")
             }
 
             Spacer(modifier = Modifier.height(12.dp))
