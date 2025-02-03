@@ -82,6 +82,17 @@ fun ProfileScreen(navController: NavHostController) {
 
             Spacer(modifier = Modifier.height(20.dp))
 
+            // Create Listing Button
+            Button(
+                onClick = { navController.navigate("CreateListing") },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(text = "Create a Listing")
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Log Out Button
             Button(
                 onClick = {
                     Firebase.auth.signOut()
