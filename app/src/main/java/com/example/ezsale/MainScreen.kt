@@ -1,6 +1,5 @@
 package com.example.ezsale
 
-import android.content.Context
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.verticalScroll
@@ -10,6 +9,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -23,11 +23,19 @@ import com.google.firebase.ktx.Firebase
 
 @Composable
 fun MainScreen(navController: NavHostController) {
-    val sharedPreferences = LocalContext.current.getSharedPreferences("auth", Context.MODE_PRIVATE)
-    val userToken = sharedPreferences.getString("userToken", null)
-    val user = Firebase.auth.currentUser
+    val context = LocalContext.current
+    val auth = Firebase.auth
+    val user = auth.currentUser
 
-    // Top Section with centered content
+    // If user is logged in, navigate to ProfileScreen
+    LaunchedEffect(user) {
+        if (user != null) {
+            navController.navigate("ProfileScreen") {
+                popUpTo("MainScreen") { inclusive = true }
+            }
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -35,10 +43,10 @@ fun MainScreen(navController: NavHostController) {
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(modifier = Modifier.height(80.dp)) // Space at the top
+        Spacer(modifier = Modifier.height(80.dp))
 
         Image(
-            painter = painterResource(id = R.drawable.ezsalelogo),  // Your app logo or image
+            painter = painterResource(id = R.drawable.ezsalelogo),
             contentDescription = "Main Screen image",
             modifier = Modifier
                 .size(150.dp)
@@ -52,50 +60,36 @@ fun MainScreen(navController: NavHostController) {
             textAlign = TextAlign.Center
         )
 
-        // Check if the user is logged in or not
-        if (user != null || userToken != null) {
-            Text(
-                text = "You are already logged in!",
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color.Gray,
-                textAlign = TextAlign.Center
-            )
-        } else {
-            Text(
-                text = "Please log in or continue as a guest",
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color.Gray,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(bottom = 24.dp)
-            )
-        }
+        Text(
+            text = if (user != null) "You are already logged in!" else "Please log in or continue as a guest",
+            style = MaterialTheme.typography.bodyMedium,
+            color = Color.Gray,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(bottom = 24.dp)
+        )
 
         Spacer(modifier = Modifier.height(40.dp))
 
-        // Bottom Section - Buttons for Login or Continue as Guest
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            // Login Button (Now correctly labeled)
-            Button(
-                onClick = { navController.navigate("LoginScreen") },
+        if (user == null) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(text = "Login")
-            }
+                Button(
+                    onClick = { navController.navigate("LoginScreen") },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(text = "Login")
+                }
 
-            Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
-            // Continue as Guest Button
-            TextButton(
-                onClick = {
-                    // Handle guest navigation (you may want to navigate to a different screen)
-                    navController.navigate("GuestHomeScreen")
-                },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(text = "Continue as Guest", color = Color.Gray)
+                TextButton(
+                    onClick = { navController.navigate("GuestHomeScreen") },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(text = "Continue as Guest", color = Color.Gray)
+                }
             }
         }
     }

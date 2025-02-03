@@ -44,6 +44,10 @@ class MainActivity : ComponentActivity() {
                         composable("NewUser") {
                             NewUserScreen(navController = navController)  // Your SplashScreen composable
                         }
+                        composable("ProfileScreen") {
+                            ProfileScreen(navController = navController)  // Your SplashScreen composable
+                        }
+
                         // You can add more screens here for navigation
                     }
                 }
