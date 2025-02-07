@@ -85,7 +85,7 @@ fun MainScreen(navController: NavHostController) {
                 Spacer(modifier = Modifier.height(12.dp))
 
                 TextButton(
-                    onClick = { navController.navigate("GuestHomeScreen") },
+                    onClick = { navController.navigate("ListingsScreen") },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(text = "Continue as Guest", color = Color.Gray)

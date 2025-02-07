@@ -50,6 +50,12 @@ class MainActivity : ComponentActivity() {
                         composable("CreateListing") {
                             CreateListing(navController = navController)  // Your SplashScreen composable
                         }
+                        composable("ListingsScreen") {
+                            ListingsScreen(navController = navController)  // Your SplashScreen composable
+                        }
+                        composable("MyListingsScreen") {
+                            MyListingsScreen(navController = navController)  // Your SplashScreen composable
+                        }
 
                         // You can add more screens here for navigation
                     }

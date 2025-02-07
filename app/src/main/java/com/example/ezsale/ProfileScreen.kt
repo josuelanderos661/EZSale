@@ -92,6 +92,25 @@ fun ProfileScreen(navController: NavHostController) {
 
             Spacer(modifier = Modifier.height(20.dp))
 
+            // View Listings Button
+            Button(
+                onClick = { navController.navigate("ListingsScreen") },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(text = "View Listings")
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            Button(
+                onClick = { navController.navigate("MyListingsScreen") }, // Ensure this route is correctly defined in your NavGraph
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(text = "My Listings")
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
             // Log Out Button
             Button(
                 onClick = {
