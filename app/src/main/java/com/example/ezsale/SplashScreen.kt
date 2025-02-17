@@ -26,7 +26,7 @@ fun SplashScreen(navController: NavHostController) {
         ) {
             // Logo Image
             Image(
-                painter = painterResource(id = R.drawable.ezsalelogo),
+                painter = painterResource(id = R.drawable.ezsalelogo1),
                 contentDescription = "App Logo",
                 modifier = Modifier.size(300.dp)
             )

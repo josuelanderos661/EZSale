@@ -1,5 +1,6 @@
 package com.example.ezsale
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -11,6 +12,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.google.firebase.Firebase
@@ -28,7 +30,7 @@ fun ProfileScreen(navController: NavHostController) {
     Scaffold(
         topBar = {
             SmallTopAppBar(
-                title = { Text("Listings") },
+                title = { Text("Profile") },
                 navigationIcon = {
                     IconButton(onClick = { navController.navigate("ListingsScreen") }) {
                         Icon(
@@ -48,6 +50,15 @@ fun ProfileScreen(navController: NavHostController) {
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
+                // App logo above the greeting text
+                Image(
+                    painter = painterResource(id = R.drawable.ezsalelogo1),
+                    contentDescription = "App Logo",
+                    modifier = Modifier
+                        .size(200.dp)
+                        .padding(bottom = 16.dp)
+                )
+
                 if (isEditing) {
                     // Editing mode: User can change display name
                     Text("Enter a new display name:", style = MaterialTheme.typography.bodyMedium)

@@ -46,7 +46,7 @@ fun MainScreen(navController: NavHostController) {
         Spacer(modifier = Modifier.height(80.dp))
 
         Image(
-            painter = painterResource(id = R.drawable.ezsalelogo),
+            painter = painterResource(id = R.drawable.ezsalelogo1),
             contentDescription = "Main Screen image",
             modifier = Modifier
                 .size(150.dp)
