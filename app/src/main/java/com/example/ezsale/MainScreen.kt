@@ -27,10 +27,10 @@ fun MainScreen(navController: NavHostController) {
     val auth = Firebase.auth
     val user = auth.currentUser
 
-    // If user is logged in, navigate to ProfileScreen
+    // If user is logged in, navigate to ListingsScreen
     LaunchedEffect(user) {
         if (user != null) {
-            navController.navigate("ProfileScreen") {
+            navController.navigate("ListingsScreen") {
                 popUpTo("MainScreen") { inclusive = true }
             }
         }
