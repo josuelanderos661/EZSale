@@ -27,10 +27,10 @@ fun MainScreen(navController: NavHostController) {
     val auth = Firebase.auth
     val user = auth.currentUser
 
-    // If user is logged in, navigate to ProfileScreen
+    // If user is logged in, navigate to ListingsScreen
     LaunchedEffect(user) {
         if (user != null) {
-            navController.navigate("ProfileScreen") {
+            navController.navigate("ListingsScreen") {
                 popUpTo("MainScreen") { inclusive = true }
             }
         }
@@ -46,7 +46,7 @@ fun MainScreen(navController: NavHostController) {
         Spacer(modifier = Modifier.height(80.dp))
 
         Image(
-            painter = painterResource(id = R.drawable.ezsalelogo),
+            painter = painterResource(id = R.drawable.ezsalelogo1),
             contentDescription = "Main Screen image",
             modifier = Modifier
                 .size(150.dp)

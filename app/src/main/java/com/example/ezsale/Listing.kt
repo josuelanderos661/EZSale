@@ -7,5 +7,7 @@ data class Listing(
     val category: String = "",
     val condition: String = "",
     val description: String = "",
-    val userId: String = ""
+    val userId: String = "",
+    val imageUrl: String = "",
+    val imagePath: String = ""
 )
