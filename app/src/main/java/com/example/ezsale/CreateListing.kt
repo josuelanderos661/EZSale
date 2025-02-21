@@ -25,7 +25,6 @@ import java.util.UUID
 fun CreateListing(navController: NavHostController) {
     val user = Firebase.auth.currentUser
 
-    // Redirect to login if user is not signed in
     if (user == null) {
         navController.navigate("LoginScreen") {
             popUpTo("CreateListing") { inclusive = true }
@@ -40,169 +39,144 @@ fun CreateListing(navController: NavHostController) {
     var description by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    // Image picker launcher to select images from the device
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent(),
-        onResult = { uri: Uri? ->
-            selectedImageUri = uri
-        }
+        onResult = { uri: Uri? -> selectedImageUri = uri }
     )
 
     Scaffold(
         topBar = {
-            SmallTopAppBar(
+            TopAppBar(
                 title = { Text("Create a Listing") },
                 navigationIcon = {
                     IconButton(onClick = { navController.navigate("ProfileScreen") }) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Back"
-                        )
+                        Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Back")
                     }
                 }
             )
-        },
-        content = { innerPadding ->
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-                    .padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                Text(
-                    text = "Create a Listing",
-                    style = MaterialTheme.typography.headlineSmall
-                )
-                Spacer(modifier = Modifier.height(10.dp))
-                TextField(
-                    value = title,
-                    onValueChange = { title = it },
-                    label = { Text("Item Title") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(10.dp))
-                TextField(
-                    value = price,
-                    onValueChange = { price = it },
-                    label = { Text("Item Price") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(10.dp))
-                TextField(
-                    value = category,
-                    onValueChange = { category = it },
-                    label = { Text("Category") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(10.dp))
-                TextField(
-                    value = condition,
-                    onValueChange = { condition = it },
-                    label = { Text("Condition") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(10.dp))
-                TextField(
-                    value = description,
-                    onValueChange = { description = it },
-                    label = { Text("Description") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(10.dp))
-                // Button to select an image
-                Button(
-                    onClick = { imagePickerLauncher.launch("image/*") },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Select Image")
-                }
-                Spacer(modifier = Modifier.height(10.dp))
-                // Preview the selected image, if available
-                selectedImageUri?.let { uri ->
-                    Image(
-                        painter = rememberAsyncImagePainter(model = uri),
-                        contentDescription = "Selected Image",
-                        modifier = Modifier
-                            .size(150.dp)
-                            .padding(8.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.height(20.dp))
-                Button(
-                    onClick = {
-                        isLoading = true
-                        val database = Firebase.database.reference
-                        val listingId = UUID.randomUUID().toString()
+        }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(text = "Create a Listing", style = MaterialTheme.typography.headlineSmall)
+            Spacer(modifier = Modifier.height(10.dp))
+            TextField(value = title, onValueChange = { title = it }, label = { Text("Item Title") }, modifier = Modifier.fillMaxWidth())
+            Spacer(modifier = Modifier.height(10.dp))
+            TextField(value = price, onValueChange = { price = it }, label = { Text("Item Price") }, modifier = Modifier.fillMaxWidth())
+            Spacer(modifier = Modifier.height(10.dp))
+            TextField(value = category, onValueChange = { category = it }, label = { Text("Category") }, modifier = Modifier.fillMaxWidth())
+            Spacer(modifier = Modifier.height(10.dp))
+            TextField(value = condition, onValueChange = { condition = it }, label = { Text("Condition") }, modifier = Modifier.fillMaxWidth())
+            Spacer(modifier = Modifier.height(10.dp))
+            TextField(value = description, onValueChange = { description = it }, label = { Text("Description") }, modifier = Modifier.fillMaxWidth())
+            Spacer(modifier = Modifier.height(10.dp))
 
-                        if (selectedImageUri != null) {
-                            // Upload image to Firebase Storage
-                            val storageRef = Firebase.storage.reference
-                                .child("listings")
-                                .child("$listingId.jpg")
+            Button(onClick = { imagePickerLauncher.launch("image/*") }, modifier = Modifier.fillMaxWidth()) {
+                Text("Select Image")
+            }
+            Spacer(modifier = Modifier.height(10.dp))
 
-                            storageRef.putFile(selectedImageUri!!).continueWithTask { task ->
-                                if (!task.isSuccessful) {
-                                    throw task.exception ?: Exception("Image upload failed")
-                                }
-                                storageRef.downloadUrl
-                            }.addOnCompleteListener { task ->
-                                if (task.isSuccessful) {
-                                    val imageUrl = task.result.toString()
-                                    val listing = mapOf(
-                                        "title" to title,
-                                        "price" to price,
-                                        "category" to category,
-                                        "condition" to condition,
-                                        "description" to description,
-                                        "userId" to user.uid,
-                                        "imageUrl" to imageUrl
-                                    )
-                                    database.child("listings").child(listingId).setValue(listing)
-                                        .addOnSuccessListener {
-                                            isLoading = false
-                                            navController.navigate("ProfileScreen")
-                                        }
-                                        .addOnFailureListener {
-                                            isLoading = false
-                                        }
-                                } else {
-                                    isLoading = false
-                                }
-                            }
+            selectedImageUri?.let { uri ->
+                Image(
+                    painter = rememberAsyncImagePainter(model = uri),
+                    contentDescription = "Selected Image",
+                    modifier = Modifier.size(150.dp).padding(8.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            errorMessage?.let {
+                Text(text = it, color = MaterialTheme.colorScheme.error)
+                Spacer(modifier = Modifier.height(10.dp))
+            }
+
+            Button(
+                onClick = {
+                    isLoading = true
+                    errorMessage = null
+                    uploadListing(user.uid, title, price, category, condition, description, selectedImageUri) { success, message ->
+                        isLoading = false
+                        if (success) {
+                            navController.navigate("ProfileScreen")
                         } else {
-                            // Create listing without an image (or set a default image URL)
-                            val listing = mapOf(
-                                "title" to title,
-                                "price" to price,
-                                "category" to category,
-                                "condition" to condition,
-                                "description" to description,
-                                "userId" to user.uid,
-                                "imageUrl" to "" // You can set a default image URL here if desired
-                            )
-                            database.child("listings").child(listingId).setValue(listing)
-                                .addOnSuccessListener {
-                                    isLoading = false
-                                    navController.navigate("ProfileScreen")
-                                }
-                                .addOnFailureListener {
-                                    isLoading = false
-                                }
+                            errorMessage = message
                         }
-                    },
-                    enabled = title.isNotEmpty() &&
-                            price.isNotEmpty() &&
-                            category.isNotEmpty() &&
-                            condition.isNotEmpty() &&
-                            description.isNotEmpty(),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(text = if (isLoading) "Saving..." else "Create Listing")
-                }
+                    }
+                },
+                enabled = !isLoading && title.isNotEmpty() && price.isNotEmpty() &&
+                        category.isNotEmpty() && condition.isNotEmpty() && description.isNotEmpty(),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(text = if (isLoading) "Saving..." else "Create Listing")
             }
         }
+    }
+}
+
+fun uploadListing(
+    userId: String,
+    title: String,
+    price: String,
+    category: String,
+    condition: String,
+    description: String,
+    imageUri: Uri?,
+    onComplete: (Boolean, String?) -> Unit
+) {
+    val database = Firebase.database.reference
+    val listingId = UUID.randomUUID().toString()
+
+    if (imageUri != null) {
+        val storageRef = Firebase.storage.reference.child("listings/$listingId.jpg")
+
+        storageRef.putFile(imageUri).continueWithTask { task ->
+            if (!task.isSuccessful) {
+                throw task.exception ?: Exception("Image upload failed")
+            }
+            storageRef.downloadUrl
+        }.addOnCompleteListener { task ->
+            if (task.isSuccessful) {
+                saveListingToDatabase(userId, title, price, category, condition, description, task.result.toString(), listingId, onComplete)
+            } else {
+                onComplete(false, "Image upload failed")
+            }
+        }
+    } else {
+        saveListingToDatabase(userId, title, price, category, condition, description, "", listingId, onComplete)
+    }
+}
+
+fun saveListingToDatabase(
+    userId: String,
+    title: String,
+    price: String,
+    category: String,
+    condition: String,
+    description: String,
+    imageUrl: String,
+    listingId: String,
+    onComplete: (Boolean, String?) -> Unit
+) {
+    val database = Firebase.database.reference
+    val listing = mapOf(
+        "title" to title,
+        "price" to price,
+        "category" to category,
+        "condition" to condition,
+        "description" to description,
+        "userId" to userId,
+        "imageUrl" to imageUrl
     )
+
+    database.child("listings").child(listingId).setValue(listing)
+        .addOnSuccessListener { onComplete(true, null) }
+        .addOnFailureListener { e -> onComplete(false, e.localizedMessage) }
 }

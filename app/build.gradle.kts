@@ -70,6 +70,10 @@ dependencies {
     implementation("com.google.firebase:firebase-storage")
 
     implementation("io.coil-kt.coil3:coil-compose:3.1.0")
+    implementation("androidx.compose.material3:material3:1.3.1")
+    implementation("androidx.compose.material:material:1.7.8")
+    implementation("androidx.compose.material:material-icons-extended:1.4.0")
     implementation("com.firebaseui:firebase-ui-storage:7.2.0")
+
 }
 

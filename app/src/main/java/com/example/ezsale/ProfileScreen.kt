@@ -29,7 +29,7 @@ fun ProfileScreen(navController: NavHostController) {
 
     Scaffold(
         topBar = {
-            SmallTopAppBar(
+            TopAppBar(
                 title = { Text("Profile") },
                 navigationIcon = {
                     IconButton(onClick = { navController.navigate("ListingsScreen") }) {

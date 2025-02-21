@@ -37,7 +37,7 @@ fun MyListingsScreen(navController: NavHostController) {
 
     Scaffold(
         topBar = {
-            SmallTopAppBar(
+            TopAppBar(
                 title = { Text("My Listings") },
                 navigationIcon = {
                     IconButton(onClick = { navController.navigate("ProfileScreen") }) {
