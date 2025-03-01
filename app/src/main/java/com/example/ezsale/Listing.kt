@@ -1,7 +1,7 @@
 package com.example.ezsale
 
 data class Listing(
-    val id: String = "",
+    var id: String = "",
     val title: String = "",
     val price: String = "",
     val category: String = "",

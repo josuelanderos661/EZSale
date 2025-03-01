@@ -155,7 +155,7 @@ fun ListingItem(listing: Listing) {
             }
 
             Text(text = listing.title, style = MaterialTheme.typography.bodyLarge)
-            Text(text = "Price: ${listing.price}", style = MaterialTheme.typography.bodyMedium)
+            Text(text = "Price: $${listing.price}", style = MaterialTheme.typography.bodyMedium)
             Text(text = "Category: ${listing.category}", style = MaterialTheme.typography.bodyMedium)
             Text(text = "Condition: ${listing.condition}", style = MaterialTheme.typography.bodyMedium)
             Text(text = listing.description, style = MaterialTheme.typography.bodySmall)
