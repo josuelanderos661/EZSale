@@ -1,6 +1,7 @@
 package com.example.ezsale
 
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -56,6 +57,13 @@ class MainActivity : ComponentActivity() {
                         composable("MyListingsScreen") {
                             MyListingsScreen(navController = navController)  // Your SplashScreen composable
                         }
+                        composable("EditListingScreen/{listingId}") { backStackEntry ->
+                            val listingId = backStackEntry.arguments?.getString("listingId") ?: ""
+                            Log.d("Navigation", "Received listingId: $listingId") // Debugging log
+                            EditListingScreen(navController = navController, listingId = listingId)
+                        }
+
+
 
                         // You can add more screens here for navigation
                     }

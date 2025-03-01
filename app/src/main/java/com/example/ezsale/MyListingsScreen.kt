@@ -35,7 +35,13 @@ fun MyListingsScreen(navController: NavHostController) {
 
     LaunchedEffect(userId) {
         database.get().addOnSuccessListener { snapshot ->
-            val allListings = snapshot.children.mapNotNull { it.getValue<Listing>() }
+            val allListings = snapshot.children.mapNotNull {
+                val listing = it.getValue<Listing>()
+                if (listing != null) {
+                    listing.id = it.key ?: ""  // Now you can modify the id directly
+                }
+                listing
+            }
             userListings = allListings.filter { it.userId == userId }
         }
     }
@@ -82,7 +88,16 @@ fun MyListingsScreen(navController: NavHostController) {
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(vertical = 8.dp)
-                                    .clickable { /* Navigate to listing details if needed */ },
+                                    .clickable {
+                                        // Navigate to EditListingScreen and pass the listingId
+                                        Log.d("Navigation", "Listing object: $listing")
+                                        if (listing.id.isNotEmpty()) {
+                                            navController.navigate("EditListingScreen/${listing.id}")
+                                        } else {
+                                            Log.e("Navigation", "Attempted to navigate with empty listing ID: ${listing}")
+                                        }
+
+                                    },
                                 elevation = CardDefaults.cardElevation(4.dp)
                             ) {
                                 Column(modifier = Modifier.padding(16.dp)) {
