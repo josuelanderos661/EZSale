@@ -102,6 +102,7 @@ fun EditListingScreen(navController: NavHostController, listingId: String) {
             }
             Spacer(modifier = Modifier.height(10.dp))
 
+            // Display the existing image or selected image
             selectedImageUri?.let { uri ->
                 Image(
                     painter = rememberAsyncImagePainter(model = uri),
@@ -121,6 +122,7 @@ fun EditListingScreen(navController: NavHostController, listingId: String) {
                 onClick = {
                     isLoading = true
                     errorMessage = null
+
                     uploadListing(
                         userId = user.uid,
                         title = title,
@@ -128,8 +130,8 @@ fun EditListingScreen(navController: NavHostController, listingId: String) {
                         category = category,
                         condition = condition,
                         description = description,
-                        imageUri = selectedImageUri,
-                        listingId = listingId ?: ""
+                        imageUri = selectedImageUri ?: Uri.parse(listing?.imageUrl),  // Use existing image if none selected
+                        listingId = listingId
                     ) { success, message ->
                         isLoading = false
                         if (success) {
@@ -145,9 +147,76 @@ fun EditListingScreen(navController: NavHostController, listingId: String) {
             ) {
                 Text(text = if (isLoading) "Saving..." else "Update Listing")
             }
+
+            var showDeleteDialog by remember { mutableStateOf(false) }
+            Button(
+                onClick = { showDeleteDialog = true },
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Delete Listing")
+            }
+
+            // Confirmation Dialog
+            if (showDeleteDialog) {
+                AlertDialog(
+                    onDismissRequest = { showDeleteDialog = false },
+                    title = { Text("Confirm Deletion") },
+                    text = { Text("Are you sure you want to delete this post? This action cannot be undone.") },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                showDeleteDialog = false
+                                deleteListing(listingId) { success, message ->
+                                    if (success) {
+                                        navController.navigate("MyListingsScreen")
+                                    } else {
+                                        errorMessage = message
+                                    }
+                                }
+                            }
+                        ) {
+                            Text("Delete", color = MaterialTheme.colorScheme.error)
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showDeleteDialog = false }) {
+                            Text("Cancel")
+                        }
+                    }
+                )
+            }
         }
     }
 }
+
+fun deleteListing(listingId: String, onComplete: (Boolean, String?) -> Unit) {
+    val database = Firebase.database.reference
+    val storage = Firebase.storage.reference
+
+    // Get the listing data to retrieve the image URL
+    database.child("listings").child(listingId).get().addOnSuccessListener { snapshot ->
+        val listing = snapshot.getValue(Listing::class.java)
+
+        // First, delete the listing from the database
+        database.child("listings").child(listingId).removeValue().addOnSuccessListener {
+            // If the listing had an image, delete it from storage
+            listing?.imageUrl?.let { imageUrl ->
+                val imageRef = storage.child("listings/$listingId.jpg")
+                imageRef.delete().addOnSuccessListener {
+                    onComplete(true, null) // Successfully deleted listing and image
+                }.addOnFailureListener { e ->
+                    onComplete(false, "Failed to delete image: ${e.localizedMessage}")
+                }
+            } ?: onComplete(true, null) // If no image, just complete successfully
+        }.addOnFailureListener { e ->
+            onComplete(false, "Failed to delete listing: ${e.localizedMessage}")
+        }
+    }.addOnFailureListener { e ->
+        onComplete(false, "Failed to fetch listing: ${e.localizedMessage}")
+    }
+}
+
 fun uploadListing(
     userId: String,
     title: String,
@@ -161,92 +230,70 @@ fun uploadListing(
 ) {
     val database = Firebase.database.reference
 
-    // If there's an image to upload
-    if (imageUri != null) {
-        val storageRef = Firebase.storage.reference.child("listings/$listingId.jpg")
+    // Get the existing listing data to preserve the image URL if not updated
+    database.child("listings").child(listingId).get().addOnSuccessListener { snapshot ->
+        val existingListing = snapshot.getValue(Listing::class.java)
 
-        storageRef.putFile(imageUri).continueWithTask { task ->
-            if (!task.isSuccessful) {
-                throw task.exception ?: Exception("Image upload failed")
+        // If there's an image to upload
+        if (imageUri != null) {
+            val storageRef = Firebase.storage.reference.child("listings/$listingId.jpg")
+
+            storageRef.putFile(imageUri).continueWithTask { task ->
+                if (!task.isSuccessful) {
+                    throw task.exception ?: Exception("Image upload failed")
+                }
+                // Get the download URL after the image is uploaded
+                storageRef.downloadUrl
+            }.addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    // Get the image URL
+                    val imageUrl = task.result.toString()
+
+                    // Create an updated Listing object with the new imageUrl
+                    val updatedListing = existingListing?.copy(
+                        title = title,
+                        price = price,
+                        category = category,
+                        condition = condition,
+                        description = description,
+                        userId = userId,
+                        imageUrl = imageUrl  // Use the new imageUrl if image was uploaded
+                    )
+
+                    // Now update the listing in the database
+                    database.child("listings").child(listingId).setValue(updatedListing)
+                        .addOnSuccessListener {
+                            onComplete(true, null)
+                        }
+                        .addOnFailureListener { e ->
+                            onComplete(false, e.localizedMessage)
+                        }
+                } else {
+                    onComplete(false, "Image upload failed")
+                }
             }
-            // Get the download URL after the image is uploaded
-            storageRef.downloadUrl
-        }.addOnCompleteListener { task ->
-            if (task.isSuccessful) {
-                // Get the image URL
-                val imageUrl = task.result.toString()
+        } else {
+            // If no image is provided, just save the listing with the existing imageUrl
+            val updatedListing = existingListing?.copy(
+                title = title,
+                price = price,
+                category = category,
+                condition = condition,
+                description = description,
+                userId = userId
+                // No need to change the imageUrl
+            )
 
-                // Create an updated Listing object with the new imageUrl
-                val updatedListing = Listing(
-                    id = listingId,
-                    title = title,
-                    price = price,
-                    category = category,
-                    condition = condition,
-                    description = description,
-                    userId = userId,
-                    imageUrl = imageUrl,  // Use the new imageUrl
-                    imagePath = storageRef.path  // Add the image path if needed
-                )
-
-                // Now update the listing in the database
-                database.child("listings").child(listingId).setValue(updatedListing)
-                    .addOnSuccessListener {
-                        onComplete(true, null)
-                    }
-                    .addOnFailureListener { e ->
-                        onComplete(false, e.localizedMessage)
-                    }
-            } else {
-                onComplete(false, "Image upload failed")
-            }
+            // Save the listing without modifying the image
+            database.child("listings").child(listingId).setValue(updatedListing)
+                .addOnSuccessListener {
+                    onComplete(true, null)
+                }
+                .addOnFailureListener { e ->
+                    onComplete(false, e.localizedMessage)
+                }
         }
-    } else {
-        // If no image is provided, just save the listing with an empty imageUrl
-        val updatedListing = Listing(
-            id = listingId,
-            title = title,
-            price = price,
-            category = category,
-            condition = condition,
-            description = description,
-            userId = userId,
-            imageUrl = "",  // No image URL if no image is provided
-            imagePath = ""  // Empty path if no image is provided
-        )
-
-        // Save the listing without an image
-        database.child("listings").child(listingId).setValue(updatedListing)
-            .addOnSuccessListener {
-                onComplete(true, null)
-            }
-            .addOnFailureListener { e ->
-                onComplete(false, e.localizedMessage)
-            }
+    }.addOnFailureListener { e ->
+        onComplete(false, e.localizedMessage)
     }
-}
-fun updateExistingListing(
-    userId: String,
-    title: String,
-    price: String,
-    category: String,
-    condition: String,
-    description: String,
-    imageUri: Uri?,
-    listingId: String, // You will pass the existing listingId
-    onComplete: (Boolean, String?) -> Unit
-) {
-    // Call the updated uploadListing function
-    uploadListing(userId, title, price, category, condition, description, imageUri, listingId, onComplete)
-}
-
-fun saveUpdatedListingToDatabase(
-    listingId: String,
-    updatedListing: Map<String, Any>,
-    onComplete: (Boolean, String?) -> Unit
-) {
-    val database = Firebase.database.reference
-    database.child("listings").child(listingId).updateChildren(updatedListing)
-        .addOnSuccessListener { onComplete(true, null) }
-        .addOnFailureListener { e -> onComplete(false, e.localizedMessage) }
 }
