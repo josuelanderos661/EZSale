@@ -105,7 +105,7 @@ fun CreateListing(navController: NavHostController) {
                     uploadListing(user.uid, title, price, category, condition, description, selectedImageUri) { success, message ->
                         isLoading = false
                         if (success) {
-                            navController.navigate("ProfileScreen")
+                            navController.navigate("MyListingsScreen")
                         } else {
                             errorMessage = message
                         }
