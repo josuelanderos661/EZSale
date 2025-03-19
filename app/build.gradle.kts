@@ -75,5 +75,6 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended:1.4.0")
     implementation("com.firebaseui:firebase-ui-storage:7.2.0")
 
+
 }
 

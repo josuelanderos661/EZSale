@@ -2,7 +2,9 @@ package com.example.ezsale
 
 import android.util.Log
 import android.widget.ImageView
+import android.widget.Toast
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -21,11 +23,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.navigation.NavHostController
 import coil3.compose.rememberAsyncImagePainter
 import com.bumptech.glide.Glide
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
@@ -39,6 +43,8 @@ import com.google.firebase.storage.ktx.storage
 @Composable
 fun ListingsScreen(navController: NavHostController) {
     val auth = Firebase.auth
+    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
+
     val database = Firebase.database.reference.child("listings")
     var listings by remember { mutableStateOf(emptyList<Listing>()) }
 
@@ -46,37 +52,20 @@ fun ListingsScreen(navController: NavHostController) {
         database.addValueEventListener(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val newListings = snapshot.children.mapNotNull { dataSnapshot ->
-                    dataSnapshot.getValue(Listing::class.java)
-                }.toMutableList()
-
-                val updatedListings = mutableListOf<Listing>()
-                val storageRef = Firebase.storage.reference
-
-                // For each listing, resolve image URL if needed
-                newListings.forEachIndexed { index, listing ->
-                    Log.d("ListingsScreen", "Processing listing: $listing")  // Log the full listing to verify the imageUrl
-
-                    if (listing.imageUrl.startsWith("gs://")) {
-                        Log.d("ListingsScreen", "Found gs:// path: ${listing.imageUrl}")
-
-                        val storageRef = Firebase.storage.getReferenceFromUrl(listing.imageUrl)
-                        storageRef.downloadUrl
-                            .addOnSuccessListener { uri ->
-                                Log.d("ListingsScreen", "Image URL fetched successfully: $uri")
-                                // Update the listing with resolved image URL
-                                updatedListings.add(listing.copy(imageUrl = uri.toString()))
-                            }
-                            .addOnFailureListener { exception ->
-                                Log.e("ListingsScreen", "Failed to fetch image URL: ${exception.message}")
-                                updatedListings.add(listing)  // Keep original listing in case of failure
-                            }
-                    } else {
-                        updatedListings.add(listing) // No need to change if already a valid URL
+                    val listing = dataSnapshot.getValue(Listing::class.java)?.apply {
+                        // Ensure 'id' is fetched from Firebase as the snapshot key
+                        id = dataSnapshot.key ?: ""
                     }
+
+                    if (listing != null) {
+                        Log.d("ListingsScreen", "Fetched Listing ID: ${listing.id}, User ID: ${listing.userId}, Title: ${listing.title}")
+                    } else {
+                        Log.e("ListingsScreen", "Failed to fetch listing from snapshot: ${dataSnapshot}")
+                    }
+                    listing // Return the listing after logging
                 }
 
-                // Once all URLs are fetched, update listings state
-                listings = updatedListings
+                listings = newListings // Assign the listings to the state variable
             }
 
             override fun onCancelled(error: DatabaseError) {
@@ -110,7 +99,7 @@ fun ListingsScreen(navController: NavHostController) {
                 Spacer(modifier = Modifier.height(10.dp))
                 LazyColumn {
                     items(listings) { listing ->
-                        ListingItem(listing)
+                        ListingItem(listing = listing, currentUserId = currentUserId, navController = navController)
                     }
                 }
             }
@@ -119,7 +108,19 @@ fun ListingsScreen(navController: NavHostController) {
 }
 
 @Composable
-fun ListingItem(listing: Listing) {
+fun ListingItem(
+    listing: Listing,
+    currentUserId: String?,
+    navController: NavHostController
+) {
+    Log.d("ListingsScreen", "Displaying listing: $listing")
+    var isImageClicked by remember { mutableStateOf(false) }
+    val imageHeight = if (isImageClicked) 400.dp else 200.dp
+    val context = LocalContext.current // For Toast messages
+
+    // Debugging: Log listing details
+    Log.d("ListingItem", "Listing ID: ${listing.id}, User ID: ${listing.userId}, Title: ${listing.title}")
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -131,34 +132,60 @@ fun ListingItem(listing: Listing) {
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
-            // Display image only if the URL is valid
             if (listing.imageUrl.isNotEmpty()) {
-                Log.d("ListingItem", "Using image URL: ${listing.imageUrl}") // Log the image URL
-
-                // Use Glide to load the image using AndroidView
                 AndroidView(
                     factory = { context ->
                         ImageView(context).apply {
                             Glide.with(context)
-                                .load(listing.imageUrl) // The URL is passed here
+                                .load(listing.imageUrl)
                                 .into(this)
                         }
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(200.dp)
+                        .height(imageHeight)
+                        .clickable {
+                            isImageClicked = !isImageClicked
+                        }
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-            } else {
-                Log.d("ListingItem", "No image available for this listing")
-                Text(text = "No image available", style = MaterialTheme.typography.bodySmall)
             }
 
             Text(text = listing.title, style = MaterialTheme.typography.bodyLarge)
             Text(text = "Price: $${listing.price}", style = MaterialTheme.typography.bodyMedium)
             Text(text = "Category: ${listing.category}", style = MaterialTheme.typography.bodyMedium)
             Text(text = "Condition: ${listing.condition}", style = MaterialTheme.typography.bodyMedium)
-            Text(text = listing.description, style = MaterialTheme.typography.bodySmall)
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = listing.description,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.weight(1f)
+                )
+
+                // Log to check listing.id and userId
+                Log.d("ListingItem", "Listing ID: ${listing.id}, User ID: ${listing.userId}, Title: ${listing.title}")
+
+                // Show button only if the listing is not owned by the current user
+                if (currentUserId == null || listing.userId != currentUserId) {
+                    IconButton(onClick = {
+                        if (currentUserId == null) {
+                            Toast.makeText(context, "You must be signed in to use this feature", Toast.LENGTH_SHORT).show()
+                        } else {
+                            Log.d("ListingsScreen", "Navigating to ChatScreen with listingId: ${listing.id}, title: ${listing.title}")
+                            navController.navigate("ChatScreen/${listing.id}/${listing.title}") // Passing listingId and title
+                        }
+                    }) {
+                        Image(
+                            painter = rememberAsyncImagePainter(R.drawable.ic_message), // Make sure this drawable exists
+                            contentDescription = "Message Seller"
+                        )
+                    }
+                }
+            }
         }
     }
 }

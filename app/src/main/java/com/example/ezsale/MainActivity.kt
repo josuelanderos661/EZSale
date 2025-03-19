@@ -62,6 +62,13 @@ class MainActivity : ComponentActivity() {
                             Log.d("Navigation", "Received listingId: $listingId") // Debugging log
                             EditListingScreen(navController = navController, listingId = listingId)
                         }
+                        composable("ChatScreen/{listingId}/{title}") { backStackEntry ->
+                            val listingId = backStackEntry.arguments?.getString("listingId") ?: ""
+                            val title = backStackEntry.arguments?.getString("title") ?: ""
+                            ChatScreen(navController = navController, listingId = listingId, title = title)
+                        }
+
+
 
 
 
