@@ -117,6 +117,12 @@ fun ProfileScreen(navController: NavHostController) {
                     ) {
                         Text(text = "My Listings")
                     }
+                    Button(
+                        onClick = { navController.navigate("MyMessageScreen") },
+                        modifier = Modifier.padding(16.dp)
+                    ) {
+                        Text("My Messages")
+                    }
                     Spacer(modifier = Modifier.height(20.dp))
                     // Log Out Button
                     Button(

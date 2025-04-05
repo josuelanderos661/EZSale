@@ -23,61 +23,45 @@ import java.util.UUID
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ChatScreen(navController: NavHostController, listingId: String, title: String) {
-    Log.d("ChatScreen", "Received listingId: $listingId, title: $title") // Log the received parameters
+fun ChatScreen(navController: NavHostController, listingId: String, title: String, sellerId: String) {
+    Log.d("ChatScreen", "Received listingId: $listingId, title: $title, sellerId: $sellerId")
 
     val currentUser = Firebase.auth.currentUser ?: return
     val database = Firebase.database.reference
 
     val buyerId = currentUser.uid
-    var sellerId by remember { mutableStateOf("") } // To store sellerId from the listing
-    val chatId = "${buyerId}_to_${sellerId}"
+    val chatId = listOf(buyerId, sellerId).sorted().joinToString("_with_")
+
+
+
 
     var messageText by remember { mutableStateOf("") }
     var messages by remember { mutableStateOf(listOf<Message>()) }
-    var isSellerFetched by remember { mutableStateOf(false) } // Track if sellerId is fetched
+    Log.d("ChatScreen", "Fetching messages for chatId: $chatId")
 
-    // Fetch the listing data and sellerId
-    LaunchedEffect(listingId) {
-        Log.d("ChatScreen", "Fetching listing data for listingId: $listingId") // Log the listingId
-        database.child("listings").child(listingId)
-            .addListenerForSingleValueEvent(object : ValueEventListener {
+
+    LaunchedEffect(listingId, chatId) {
+        Log.d("ChatScreen", "Fetching messages for chatId: $chatId")
+        database.child("messages").child(listingId).child(chatId)
+            .orderByChild("timestamp")
+            .addValueEventListener(object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
-                    val listing = snapshot.getValue(Listing::class.java)
-                    sellerId = listing?.userId ?: ""
-                    isSellerFetched = true // Seller ID is now fetched
-                    Log.d("ChatScreen", "Fetched sellerId: $sellerId for listingId: $listingId") // Log the fetched sellerId
+                    val messageList = mutableListOf<Message>()
+                    for (child in snapshot.children) {
+                        val message = child.getValue(Message::class.java)
+                        message?.let { messageList.add(it) }
+                    }
+                    messages = messageList
                 }
 
                 override fun onCancelled(error: DatabaseError) {}
             })
     }
 
-    // Fetch messages from Firebase once sellerId is fetched
-    LaunchedEffect(listingId, chatId, isSellerFetched) {
-        if (isSellerFetched && sellerId.isNotEmpty()) {  // Only proceed once sellerId is available
-            Log.d("ChatScreen", "Fetching messages for chatId: $chatId")
-            database.child("messages").child(listingId).child(chatId)
-                .orderByChild("timestamp")
-                .addValueEventListener(object : ValueEventListener {
-                    override fun onDataChange(snapshot: DataSnapshot) {
-                        val messageList = mutableListOf<Message>()
-                        for (child in snapshot.children) {
-                            val message = child.getValue(Message::class.java)
-                            message?.let { messageList.add(it) }
-                        }
-                        messages = messageList
-                    }
-
-                    override fun onCancelled(error: DatabaseError) {}
-                })
-        }
-    }
-
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("$title - ${if (isSellerFetched) sellerId else "Loading..."}") }, // Display title and sellerId or "Loading"
+                title = { Text("$title - Seller: $sellerId") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Back")
