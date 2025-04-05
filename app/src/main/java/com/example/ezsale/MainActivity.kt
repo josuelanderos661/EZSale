@@ -57,15 +57,26 @@ class MainActivity : ComponentActivity() {
                         composable("MyListingsScreen") {
                             MyListingsScreen(navController = navController)  // Your SplashScreen composable
                         }
+                        composable("MyMessageScreen") {
+                            MyMessageScreen(navController = navController)
+                        }
+
                         composable("EditListingScreen/{listingId}") { backStackEntry ->
                             val listingId = backStackEntry.arguments?.getString("listingId") ?: ""
                             Log.d("Navigation", "Received listingId: $listingId") // Debugging log
                             EditListingScreen(navController = navController, listingId = listingId)
                         }
-                        composable("ChatScreen/{listingId}/{title}") { backStackEntry ->
+                        composable("ChatScreen/{listingId}/{title}/{sellerId}") { backStackEntry ->
                             val listingId = backStackEntry.arguments?.getString("listingId") ?: ""
                             val title = backStackEntry.arguments?.getString("title") ?: ""
-                            ChatScreen(navController = navController, listingId = listingId, title = title)
+                            val sellerId = backStackEntry.arguments?.getString("sellerId") ?: ""
+
+                            ChatScreen(
+                                navController = navController,
+                                listingId = listingId,
+                                title = title,
+                                sellerId = sellerId
+                            )
                         }
 
 
