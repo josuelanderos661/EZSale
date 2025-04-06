@@ -26,32 +26,52 @@ fun MyMessageScreen(navController: NavHostController) {
     var chatSummaries by remember { mutableStateOf(listOf<ChatSummary>()) }
 
     LaunchedEffect(true) {
+        // Start fetching the chat summaries
         database.child("messages").addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                val summaryList = mutableSetOf<ChatSummary>()
+                val summaryList = mutableListOf<ChatSummary>()
 
+                // Fetch listing titles and prices asynchronously
                 snapshot.children.forEach { listingSnapshot ->
                     val listingId = listingSnapshot.key ?: return@forEach
 
-                    listingSnapshot.children.forEach { chatSnapshot ->
-                        val chatId = chatSnapshot.key ?: return@forEach
+                    // Fetch the listing title and price
+                    database.child("listings").child(listingId).let { listingRef ->
+                        listingRef.child("title").get().addOnSuccessListener { listingTitleSnapshot ->
+                            var listingTitle = listingTitleSnapshot.getValue(String::class.java) ?: "Untitled"
 
-                        val (userA, _, userB) = chatId.split("_")
+                            // If title is "Untitled", update it and give option to delete chat
+                            if (listingTitle == "Untitled") {
+                                listingTitle = "Listing Was Deleted..."
+                            }
 
-                        val isInvolved = userA == userId || userB == userId
-                        if (!isInvolved) return@forEach
+                            listingRef.child("price").get().addOnSuccessListener { listingPriceSnapshot ->
+                                val price = listingPriceSnapshot.getValue(String::class.java) ?: "0.00"
 
-                        val otherUserId = if (userA == userId) userB else userA
+                                // Process the messages for each chat
+                                listingSnapshot.children.forEach { chatSnapshot ->
+                                    val chatId = chatSnapshot.key ?: return@forEach
 
-                        // Grab latest message title for UI (optional — needs title stored in DB ideally)
-                        val lastMessage = chatSnapshot.children.lastOrNull()?.getValue(Message::class.java)
-                        val preview = lastMessage?.text ?: "No messages yet"
+                                    val (userA, _, userB) = chatId.split("_")
+                                    val isInvolved = userA == userId || userB == userId
+                                    if (!isInvolved) return@forEach
 
-                        summaryList.add(ChatSummary(listingId, otherUserId, preview))
+                                    val otherUserId = if (userA == userId) userB else userA
+
+                                    // Grab the last message text for preview
+                                    val lastMessage = chatSnapshot.children.lastOrNull()?.getValue(Message::class.java)
+                                    val preview = lastMessage?.text ?: "No messages yet"
+
+                                    // Add the chat summary with the listing title and price
+                                    summaryList.add(ChatSummary(listingId, listingTitle, otherUserId, preview, price))
+                                }
+
+                                // After all titles and prices are fetched, update the state
+                                chatSummaries = summaryList
+                            }
+                        }
                     }
                 }
-
-                chatSummaries = summaryList.toList()
             }
 
             override fun onCancelled(error: DatabaseError) {}
@@ -78,16 +98,27 @@ fun MyMessageScreen(navController: NavHostController) {
                     items(chatSummaries) { summary ->
                         Card(
                             onClick = {
-                                navController.navigate("ChatScreen/${summary.listingId}/Chat/${summary.otherUserId}")
+                                navController.navigate("ChatScreen/${summary.listingId}/Chat/${summary.otherUserId}/${summary.price}")
                             },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(vertical = 4.dp)
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
-                                Text("Listing: ${summary.listingId}")
+                                Text("Listing: ${summary.listingTitle}")
+                                Text("Price: $${summary.price}")
                                 Text("Chat with: ${summary.otherUserId}")
-                                Text("Last message: ${summary.preview}")
+
+                                // Show delete button if the listing was deleted
+                                if (summary.listingTitle == "Listing Was Deleted...") {
+                                    TextButton(onClick = {
+                                        deleteMessagesForListing(summary.listingId)
+                                        // Remove the deleted chat from the UI immediately
+                                        chatSummaries = chatSummaries.filter { it.listingId != summary.listingId }
+                                    }) {
+                                        Text("Delete Chat")
+                                    }
+                                }
                             }
                         }
                     }
@@ -97,8 +128,17 @@ fun MyMessageScreen(navController: NavHostController) {
     }
 }
 
+fun deleteMessagesForListing(listingId: String) {
+    val database = Firebase.database.reference
+
+    // Delete messages related to this listing
+    database.child("messages").child(listingId).removeValue()
+}
+
 data class ChatSummary(
     val listingId: String,
+    val listingTitle: String,
     val otherUserId: String,
-    val preview: String
+    val preview: String,
+    val price: String
 )
