@@ -65,6 +65,15 @@ fun EditListingScreen(navController: NavHostController, listingId: String) {
         onResult = { uri: Uri? -> selectedImageUri = uri }
     )
 
+    val categories = listOf(
+        "Electronics", "Furniture", "Video Games", "Clothing & Accessories", "Home & Kitchen",
+        "Toys & Games", "Tools & Garden", "Sports & Outdoors", "Books, Movies & Music", "Baby & Kids", "Miscellaneous"
+    )
+
+    val conditionOptions = listOf("New", "Like New", "Good", "Fair")
+    var expandedCondition by remember { mutableStateOf(false) }
+    var expandedCategory by remember { mutableStateOf(false) }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -86,17 +95,93 @@ fun EditListingScreen(navController: NavHostController, listingId: String) {
         ) {
             Text(text = "Edit Listing", style = MaterialTheme.typography.headlineSmall)
             Spacer(modifier = Modifier.height(10.dp))
+
+            // Title
             TextField(value = title, onValueChange = { title = it }, label = { Text("Item Title") }, modifier = Modifier.fillMaxWidth())
             Spacer(modifier = Modifier.height(10.dp))
+
+            // Price
             TextField(value = price, onValueChange = { price = it }, label = { Text("Item Price") }, modifier = Modifier.fillMaxWidth())
             Spacer(modifier = Modifier.height(10.dp))
-            TextField(value = category, onValueChange = { category = it }, label = { Text("Category") }, modifier = Modifier.fillMaxWidth())
+
+            // Condition Dropdown
+            ExposedDropdownMenuBox(
+                expanded = expandedCondition,
+                onExpandedChange = { expandedCondition = !expandedCondition },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                TextField(
+                    value = condition,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Condition") },
+                    trailingIcon = {
+                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCondition)
+                    },
+                    modifier = Modifier
+                        .menuAnchor()
+                        .fillMaxWidth()
+                )
+
+                ExposedDropdownMenu(
+                    expanded = expandedCondition,
+                    onDismissRequest = { expandedCondition = false }
+                ) {
+                    conditionOptions.forEach { selectionOption ->
+                        DropdownMenuItem(
+                            text = { Text(selectionOption) },
+                            onClick = {
+                                condition = selectionOption
+                                expandedCondition = false
+                            }
+                        )
+                    }
+                }
+            }
             Spacer(modifier = Modifier.height(10.dp))
-            TextField(value = condition, onValueChange = { condition = it }, label = { Text("Condition") }, modifier = Modifier.fillMaxWidth())
-            Spacer(modifier = Modifier.height(10.dp))
+
+            // Description
             TextField(value = description, onValueChange = { description = it }, label = { Text("Description") }, modifier = Modifier.fillMaxWidth())
             Spacer(modifier = Modifier.height(10.dp))
 
+            // Category Dropdown
+            ExposedDropdownMenuBox(
+                expanded = expandedCategory,
+                onExpandedChange = { expandedCategory = !expandedCategory },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                TextField(
+                    value = category,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Category") },
+                    trailingIcon = {
+                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCategory)
+                    },
+                    modifier = Modifier
+                        .menuAnchor()
+                        .fillMaxWidth()
+                )
+
+                ExposedDropdownMenu(
+                    expanded = expandedCategory,
+                    onDismissRequest = { expandedCategory = false }
+                ) {
+                    categories.forEach { selectionOption ->
+                        DropdownMenuItem(
+                            text = { Text(selectionOption) },
+                            onClick = {
+                                category = selectionOption
+                                expandedCategory = false
+                            }
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Image Selection
             Button(onClick = { imagePickerLauncher.launch("image/*") }, modifier = Modifier.fillMaxWidth()) {
                 Text("Select Image")
             }
@@ -229,6 +314,12 @@ fun uploadListing(
     onComplete: (Boolean, String?) -> Unit
 ) {
     val database = Firebase.database.reference
+
+    // Check for empty fields before proceeding
+    if (title.isEmpty() || price.isEmpty() || category.isEmpty() || condition.isEmpty() || description.isEmpty()) {
+        onComplete(false, "All fields must be filled out!")
+        return
+    }
 
     // Get the existing listing data to preserve the image URL if not updated
     database.child("listings").child(listingId).get().addOnSuccessListener { snapshot ->

@@ -5,6 +5,10 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
@@ -46,6 +50,20 @@ fun CreateListing(navController: NavHostController) {
         onResult = { uri: Uri? -> selectedImageUri = uri }
     )
 
+    val categories = listOf(
+        "Electronics",
+        "Furniture",
+        "Video Games",
+        "Clothing & Accessories",
+        "Home & Kitchen",
+        "Toys & Games",
+        "Tools & Garden",
+        "Sports & Outdoors",
+        "Books, Movies & Music",
+        "Baby & Kids",
+        "Miscellaneous"
+    )
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -61,21 +79,99 @@ fun CreateListing(navController: NavHostController) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .verticalScroll(rememberScrollState())
                 .padding(innerPadding)
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(text = "Create a Listing", style = MaterialTheme.typography.headlineSmall)
             Spacer(modifier = Modifier.height(10.dp))
+
             TextField(value = title, onValueChange = { title = it }, label = { Text("Item Title") }, modifier = Modifier.fillMaxWidth())
             Spacer(modifier = Modifier.height(10.dp))
+
             TextField(value = price, onValueChange = { price = it }, label = { Text("Item Price") }, modifier = Modifier.fillMaxWidth())
             Spacer(modifier = Modifier.height(10.dp))
-            TextField(value = category, onValueChange = { category = it }, label = { Text("Category") }, modifier = Modifier.fillMaxWidth())
+
+            val conditionOptions = listOf("New", "Like New", "Good", "Fair")
+            var expandedCondition by remember { mutableStateOf(false) }
+
+            ExposedDropdownMenuBox(
+                expanded = expandedCondition,
+                onExpandedChange = { expandedCondition = !expandedCondition },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                TextField(
+                    value = condition,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Condition") },
+                    trailingIcon = {
+                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCondition)
+                    },
+                    modifier = Modifier
+                        .menuAnchor()
+                        .fillMaxWidth()
+                )
+
+                ExposedDropdownMenu(
+                    expanded = expandedCondition,
+                    onDismissRequest = { expandedCondition = false }
+                ) {
+                    conditionOptions.forEach { selectionOption ->
+                        DropdownMenuItem(
+                            text = { Text(selectionOption) },
+                            onClick = {
+                                condition = selectionOption
+                                expandedCondition = false
+                            }
+                        )
+                    }
+                }
+            }
             Spacer(modifier = Modifier.height(10.dp))
-            TextField(value = condition, onValueChange = { condition = it }, label = { Text("Condition") }, modifier = Modifier.fillMaxWidth())
-            Spacer(modifier = Modifier.height(10.dp))
+
             TextField(value = description, onValueChange = { description = it }, label = { Text("Description") }, modifier = Modifier.fillMaxWidth())
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Category Dropdown
+            val categoryOptions = categories
+            var expandedCategory by remember { mutableStateOf(false) }
+
+            ExposedDropdownMenuBox(
+                expanded = expandedCategory,
+                onExpandedChange = { expandedCategory = !expandedCategory },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                TextField(
+                    value = category,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Category") },
+                    trailingIcon = {
+                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCategory)
+                    },
+                    modifier = Modifier
+                        .menuAnchor()
+                        .fillMaxWidth()
+                )
+
+                ExposedDropdownMenu(
+                    expanded = expandedCategory,
+                    onDismissRequest = { expandedCategory = false }
+                ) {
+                    categoryOptions.forEach { selectionOption ->
+                        DropdownMenuItem(
+                            text = { Text(selectionOption) },
+                            onClick = {
+                                category = selectionOption
+                                expandedCategory = false
+                            }
+                        )
+                    }
+                }
+            }
+
             Spacer(modifier = Modifier.height(10.dp))
 
             Button(onClick = { imagePickerLauncher.launch("image/*") }, modifier = Modifier.fillMaxWidth()) {
@@ -87,7 +183,9 @@ fun CreateListing(navController: NavHostController) {
                 Image(
                     painter = rememberAsyncImagePainter(model = uri),
                     contentDescription = "Selected Image",
-                    modifier = Modifier.size(150.dp).padding(8.dp)
+                    modifier = Modifier
+                        .size(150.dp)
+                        .padding(8.dp)
                 )
             }
 

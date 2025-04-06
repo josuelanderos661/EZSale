@@ -36,7 +36,7 @@ import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.ValueEventListener
 import com.google.firebase.database.ktx.database
 import com.google.firebase.ktx.Firebase
-import com.google.firebase.storage.ktx.storage
+
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -175,14 +175,13 @@ fun ListingItem(
                         if (currentUserId == null) {
                             Toast.makeText(context, "You must be signed in to use this feature", Toast.LENGTH_SHORT).show()
                         } else {
-                            Log.d("ListingsScreen", "Navigating to ChatScreen with listingId: ${listing.id}, title: ${listing.title}, userId: ${listing.userId}")
-                            // Passing listingId, title, and userId to the ChatScreen
-                            navController.navigate("ChatScreen/${listing.id}/${listing.title}/${listing.userId}")
-                            // Passing listingId and title
+                            Log.d("ListingsScreen", "Navigating to ChatScreen with listingId: ${listing.id}, title: ${listing.title}, userId: ${listing.userId}, price: ${listing.price}")
+                            // Pass listingId, title, userId, and price to the ChatScreen
+                            navController.navigate("ChatScreen/${listing.id}/${listing.title}/${listing.userId}/${listing.price}")
                         }
                     }) {
                         Image(
-                            painter = rememberAsyncImagePainter(R.drawable.ic_message), // Make sure this drawable exists
+                            painter = rememberAsyncImagePainter(R.drawable.ic_message),
                             contentDescription = "Message Seller"
                         )
                     }

@@ -23,8 +23,8 @@ import java.util.UUID
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ChatScreen(navController: NavHostController, listingId: String, title: String, sellerId: String) {
-    Log.d("ChatScreen", "Received listingId: $listingId, title: $title, sellerId: $sellerId")
+fun ChatScreen(navController: NavHostController, listingId: String, title: String, sellerId: String, price: String) {
+    Log.d("ChatScreen", "Received listingId: $listingId, title: $title, sellerId: $sellerId, price: $price")
 
     val currentUser = Firebase.auth.currentUser ?: return
     val database = Firebase.database.reference
@@ -32,36 +32,61 @@ fun ChatScreen(navController: NavHostController, listingId: String, title: Strin
     val buyerId = currentUser.uid
     val chatId = listOf(buyerId, sellerId).sorted().joinToString("_with_")
 
-
-
-
     var messageText by remember { mutableStateOf("") }
     var messages by remember { mutableStateOf(listOf<Message>()) }
-    Log.d("ChatScreen", "Fetching messages for chatId: $chatId")
 
+    var listingTitle by remember { mutableStateOf(title) }
 
-    LaunchedEffect(listingId, chatId) {
-        Log.d("ChatScreen", "Fetching messages for chatId: $chatId")
-        database.child("messages").child(listingId).child(chatId)
-            .orderByChild("timestamp")
-            .addValueEventListener(object : ValueEventListener {
-                override fun onDataChange(snapshot: DataSnapshot) {
-                    val messageList = mutableListOf<Message>()
-                    for (child in snapshot.children) {
-                        val message = child.getValue(Message::class.java)
-                        message?.let { messageList.add(it) }
-                    }
-                    messages = messageList
+    // This will trigger when the `listingId` or `title` changes.
+    LaunchedEffect(listingId) {
+        // If the title is passed as "Chat" or is blank, fetch it from Firebase
+        if (title == "Chat" || title.isBlank()) {
+            Firebase.database.reference.child("listings").child(listingId).child("title")
+                .get().addOnSuccessListener {
+                    listingTitle = it.getValue(String::class.java) ?: "Chat"
                 }
+        } else {
+            listingTitle = title // Otherwise, use the passed title
+        }
+    }
 
-                override fun onCancelled(error: DatabaseError) {}
-            })
+    DisposableEffect(listingId, chatId) {
+        Log.d("ChatScreen", "Setting up listener for chatId: $chatId")
+
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                val messageList = mutableListOf<Message>()
+                for (child in snapshot.children) {
+                    val message = child.getValue(Message::class.java)
+                    message?.let { messageList.add(it) }
+                }
+                messages = messageList
+            }
+
+            override fun onCancelled(error: DatabaseError) {}
+        }
+
+        val chatRef = database.child("messages").child(listingId).child(chatId).orderByChild("timestamp")
+        chatRef.addValueEventListener(listener)
+
+        // Cleanup when the Composable leaves the Composition
+        onDispose {
+            Log.d("ChatScreen", "Removing listener for chatId: $chatId")
+            chatRef.ref.removeEventListener(listener)
+        }
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("$title - Seller: $sellerId") },
+                title = {
+                    Column {
+                        // Title and price display in the format "Title - $Price"
+                        Text(text = "$listingTitle - $$price", style = MaterialTheme.typography.titleMedium)
+                        // Seller ID below the title and price
+                        Text(text = "Seller ID: $sellerId", style = MaterialTheme.typography.bodyMedium)
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Back")
