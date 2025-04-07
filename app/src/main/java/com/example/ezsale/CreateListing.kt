@@ -41,6 +41,7 @@ fun CreateListing(navController: NavHostController) {
     var category by remember { mutableStateOf("") }
     var condition by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
+    var location by remember { mutableStateOf("") } // Location state
     var isLoading by remember { mutableStateOf(false) }
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -51,18 +52,12 @@ fun CreateListing(navController: NavHostController) {
     )
 
     val categories = listOf(
-        "Electronics",
-        "Furniture",
-        "Video Games",
-        "Clothing & Accessories",
-        "Home & Kitchen",
-        "Toys & Games",
-        "Tools & Garden",
-        "Sports & Outdoors",
-        "Books, Movies & Music",
-        "Baby & Kids",
-        "Miscellaneous"
+        "Electronics", "Furniture", "Video Games", "Clothing & Accessories",
+        "Home & Kitchen", "Toys & Games", "Tools & Garden", "Sports & Outdoors",
+        "Books, Movies & Music", "Baby & Kids", "Miscellaneous"
     )
+
+    val locations = listOf("Santa Barbara", "Ventura", "Camarillo", "Oxnard") // Location options
 
     Scaffold(
         topBar = {
@@ -129,6 +124,45 @@ fun CreateListing(navController: NavHostController) {
                     }
                 }
             }
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Location Dropdown
+            var expandedLocation by remember { mutableStateOf(false) }
+
+            ExposedDropdownMenuBox(
+                expanded = expandedLocation,
+                onExpandedChange = { expandedLocation = !expandedLocation },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                TextField(
+                    value = location,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Location") },
+                    trailingIcon = {
+                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedLocation)
+                    },
+                    modifier = Modifier
+                        .menuAnchor()
+                        .fillMaxWidth()
+                )
+
+                ExposedDropdownMenu(
+                    expanded = expandedLocation,
+                    onDismissRequest = { expandedLocation = false }
+                ) {
+                    locations.forEach { locationOption ->
+                        DropdownMenuItem(
+                            text = { Text(locationOption) },
+                            onClick = {
+                                location = locationOption
+                                expandedLocation = false
+                            }
+                        )
+                    }
+                }
+            }
+
             Spacer(modifier = Modifier.height(10.dp))
 
             TextField(value = description, onValueChange = { description = it }, label = { Text("Description") }, modifier = Modifier.fillMaxWidth())
@@ -200,7 +234,7 @@ fun CreateListing(navController: NavHostController) {
                 onClick = {
                     isLoading = true
                     errorMessage = null
-                    uploadListing(user.uid, title, price, category, condition, description, selectedImageUri) { success, message ->
+                    uploadListing(user.uid, title, price, category, condition, description, location, selectedImageUri) { success, message ->
                         isLoading = false
                         if (success) {
                             navController.navigate("MyListingsScreen")
@@ -210,7 +244,7 @@ fun CreateListing(navController: NavHostController) {
                     }
                 },
                 enabled = !isLoading && title.isNotEmpty() && price.isNotEmpty() &&
-                        category.isNotEmpty() && condition.isNotEmpty() && description.isNotEmpty(),
+                        category.isNotEmpty() && condition.isNotEmpty() && description.isNotEmpty() && location.isNotEmpty(),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(text = if (isLoading) "Saving..." else "Create Listing")
@@ -226,6 +260,7 @@ fun uploadListing(
     category: String,
     condition: String,
     description: String,
+    location: String, // Location parameter
     imageUri: Uri?,
     onComplete: (Boolean, String?) -> Unit
 ) {
@@ -242,13 +277,13 @@ fun uploadListing(
             storageRef.downloadUrl
         }.addOnCompleteListener { task ->
             if (task.isSuccessful) {
-                saveListingToDatabase(userId, title, price, category, condition, description, task.result.toString(), listingId, onComplete)
+                saveListingToDatabase(userId, title, price, category, condition, description, location, task.result.toString(), listingId, onComplete)
             } else {
                 onComplete(false, "Image upload failed")
             }
         }
     } else {
-        saveListingToDatabase(userId, title, price, category, condition, description, "", listingId, onComplete)
+        saveListingToDatabase(userId, title, price, category, condition, description, location, "", listingId, onComplete)
     }
 }
 
@@ -259,6 +294,7 @@ fun saveListingToDatabase(
     category: String,
     condition: String,
     description: String,
+    location: String, // Add location to the database
     imageUrl: String,
     listingId: String,
     onComplete: (Boolean, String?) -> Unit
@@ -271,7 +307,8 @@ fun saveListingToDatabase(
         "condition" to condition,
         "description" to description,
         "userId" to userId,
-        "imageUrl" to imageUrl
+        "imageUrl" to imageUrl,
+        "location" to location // Save the location in the database
     )
 
     database.child("listings").child(listingId).setValue(listing)
