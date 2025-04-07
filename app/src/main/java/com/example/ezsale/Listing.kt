@@ -9,5 +9,6 @@ data class Listing(
     val description: String = "",
     val userId: String = "",
     val imageUrl: String = "",
-    val imagePath: String = ""
+    val imagePath: String = "",
+    val location: String = ""
 )
