@@ -6,6 +6,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
@@ -32,8 +34,10 @@ fun EditListingScreen(navController: NavHostController, listingId: String) {
     var category by remember { mutableStateOf("") }
     var condition by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
+    var location by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
+    var existingImageUrl by remember { mutableStateOf<String?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     // Fetch the listing data when listingId changes
@@ -47,7 +51,8 @@ fun EditListingScreen(navController: NavHostController, listingId: String) {
                     category = item.category
                     condition = item.condition
                     description = item.description
-                    selectedImageUri = item.imageUrl?.let { Uri.parse(it) }
+                    location = item.location ?: ""
+                    existingImageUrl = item.imageUrl
                 }
             }
         }
@@ -89,6 +94,7 @@ fun EditListingScreen(navController: NavHostController, listingId: String) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .verticalScroll(rememberScrollState()) // <- this makes it scrollable!
                 .padding(innerPadding)
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -180,10 +186,43 @@ fun EditListingScreen(navController: NavHostController, listingId: String) {
             }
 
             Spacer(modifier = Modifier.height(10.dp))
+            val locations = listOf("Santa Barbara", "Ventura", "Camarillo", "Oxnard")
+            var expandedLocation by remember { mutableStateOf(false) }
+            ExposedDropdownMenuBox(
+                expanded = expandedLocation,
+                onExpandedChange = { expandedLocation = !expandedLocation },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                TextField(
+                    value = location,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Location") },
+                    trailingIcon = {
+                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedLocation)
+                    },
+                    modifier = Modifier.menuAnchor().fillMaxWidth()
+                )
 
+                ExposedDropdownMenu(
+                    expanded = expandedLocation,
+                    onDismissRequest = { expandedLocation = false }
+                ) {
+                    locations.forEach { locationOption ->
+                        DropdownMenuItem(
+                            text = { Text(locationOption) },
+                            onClick = {
+                                location = locationOption
+                                expandedLocation = false
+                            }
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(10.dp))
             // Image Selection
             Button(onClick = { imagePickerLauncher.launch("image/*") }, modifier = Modifier.fillMaxWidth()) {
-                Text("Select Image")
+                Text("Update Image")
             }
             Spacer(modifier = Modifier.height(10.dp))
 
@@ -215,7 +254,9 @@ fun EditListingScreen(navController: NavHostController, listingId: String) {
                         category = category,
                         condition = condition,
                         description = description,
-                        imageUri = selectedImageUri ?: Uri.parse(listing?.imageUrl),  // Use existing image if none selected
+                        location = location, // <- ADD THIS
+                        imageUri = selectedImageUri,
+                        existingImageUrl = existingImageUrl,
                         listingId = listingId
                     ) { success, message ->
                         isLoading = false
@@ -309,7 +350,9 @@ fun uploadListing(
     category: String,
     condition: String,
     description: String,
+    location: String, // <- ADD THIS
     imageUri: Uri?,
+    existingImageUrl:String?,
     listingId: String,
     onComplete: (Boolean, String?) -> Unit
 ) {
@@ -347,6 +390,7 @@ fun uploadListing(
                         category = category,
                         condition = condition,
                         description = description,
+                        location = location,
                         userId = userId,
                         imageUrl = imageUrl  // Use the new imageUrl if image was uploaded
                     )
@@ -371,7 +415,9 @@ fun uploadListing(
                 category = category,
                 condition = condition,
                 description = description,
-                userId = userId
+                location = location,
+                userId = userId,
+                imageUrl = existingImageUrl ?: ""
                 // No need to change the imageUrl
             )
 
