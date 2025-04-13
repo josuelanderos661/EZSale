@@ -1,6 +1,7 @@
 package com.example.ezsale
 
 import android.widget.ImageView
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -12,15 +13,19 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.navigation.NavHostController
 import com.bumptech.glide.Glide
 import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.FirebaseDatabase
-import com.google.firebase.database.ktx.getValue
+import com.google.firebase.database.ValueEventListener
+
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -33,22 +38,23 @@ fun MyListingsScreen(navController: NavHostController) {
     var userListings by remember { mutableStateOf<List<Listing>>(emptyList()) }
 
     LaunchedEffect(userId) {
-        database.get().addOnSuccessListener { snapshot ->
-            val allListings = snapshot.children.mapNotNull {
-                val listing = it.getValue<Listing>()
-                if (listing != null) {
-                    listing.id = it.key ?: ""
+        database.addValueEventListener(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                val allListings = snapshot.children.mapNotNull {
+                    val listing = it.getValue(Listing::class.java)
+                    listing?.apply { id = it.key ?: "" }
                 }
-                listing
+                userListings = allListings.filter { it.userId == userId }
             }
-            userListings = allListings.filter { it.userId == userId }
-        }
+
+            override fun onCancelled(error: DatabaseError) {}
+        })
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("My Listings") },
+                title = { Text("My Listings", style = MaterialTheme.typography.titleLarge) },
                 navigationIcon = {
                     IconButton(onClick = { navController.navigate("ProfileScreen") }) {
                         Icon(
@@ -88,6 +94,7 @@ fun MyListingsScreen(navController: NavHostController) {
 
 @Composable
 fun MyListingItem(listing: Listing, navController: NavHostController) {
+    val database: DatabaseReference = FirebaseDatabase.getInstance().getReference("listings")
     var isImageClicked by remember { mutableStateOf(false) }
     val imageHeight = if (isImageClicked) 400.dp else 200.dp
 
@@ -95,21 +102,59 @@ fun MyListingItem(listing: Listing, navController: NavHostController) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(8.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             if (listing.imageUrl.isNotEmpty()) {
-                AndroidView(
-                    factory = { context ->
-                        ImageView(context).apply {
-                            Glide.with(context).load(listing.imageUrl).into(this)
-                        }
-                    },
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(imageHeight)
                         .clickable { isImageClicked = !isImageClicked }
-                )
+                ) {
+                    AndroidView(
+                        factory = { context ->
+                            ImageView(context).apply {
+                                Glide.with(context).load(listing.imageUrl).into(this)
+                            }
+                        },
+                        modifier = Modifier.fillMaxSize()
+                    )
+
+                    if (listing.sold) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "SOLD",
+                                style = MaterialTheme.typography.displayMedium,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                            )
+                        }
+                    } else if (listing.pending) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(imageHeight / 2)
+                                .align(Alignment.BottomCenter)
+                                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "PENDING",
+                                style = MaterialTheme.typography.headlineSmall,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                            )
+                        }
+                    }
+                }
+
                 Spacer(modifier = Modifier.height(8.dp))
             } else {
                 Text("No image available", style = MaterialTheme.typography.bodySmall)
@@ -125,7 +170,11 @@ fun MyListingItem(listing: Listing, navController: NavHostController) {
                     Text("•", style = MaterialTheme.typography.bodyMedium)
                     Spacer(modifier = Modifier.width(4.dp))
                 }
-                Text(listing.title, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                Text(
+                    listing.title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.weight(1f)
+                )
             }
 
             if (isImageClicked) {
@@ -137,8 +186,73 @@ fun MyListingItem(listing: Listing, navController: NavHostController) {
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
+                var expanded by remember { mutableStateOf(false) }
+
+                Box {
+                    Row(
+                        modifier = Modifier
+                            .background(
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                                shape = MaterialTheme.shapes.medium
+                            )
+                            .clickable { expanded = true }
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = when {
+                                listing.sold -> "Sold"
+                                listing.pending -> "Pending"
+                                else -> "Available"
+                            },
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = "Expand Status",
+                            modifier = Modifier
+                                .padding(start = 8.dp)
+                                .rotate(90f),
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+
+                    DropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false },
+                        modifier = Modifier.background(MaterialTheme.colorScheme.surface)
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Available") },
+                            onClick = {
+                                val updates = mapOf("sold" to false, "pending" to false)
+                                database.child(listing.id).updateChildren(updates)
+                                expanded = false
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Pending") },
+                            onClick = {
+                                val updates = mapOf("sold" to false, "pending" to true)
+                                database.child(listing.id).updateChildren(updates)
+                                expanded = false
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Sold") },
+                            onClick = {
+                                val updates = mapOf("sold" to true, "pending" to false)
+                                database.child(listing.id).updateChildren(updates)
+                                expanded = false
+                            }
+                        )
+                    }
+                }
+
                 IconButton(onClick = {
                     navController.navigate("EditListingScreen/${listing.id}")
                 }) {

@@ -1,11 +1,13 @@
 package com.example.ezsale
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -18,6 +20,7 @@ import androidx.navigation.NavHostController
 import com.google.firebase.Firebase
 import com.google.firebase.auth.UserProfileChangeRequest
 import com.google.firebase.auth.auth
+import com.google.firebase.database.database
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,21 +54,73 @@ fun ProfileScreen(navController: NavHostController) {
                 verticalArrangement = Arrangement.Center
             ) {
                 // App logo above the greeting text
+                val userId = Firebase.auth.currentUser?.uid
+                val isGuest = displayName == "Guest"
+                val dbRef = Firebase.database.reference.child("users").child(userId ?: "")
+                val profileOptions = listOf("profilegrey", "profilered", "profilepurple", "profilepink", "profileblue")
+
+                var selectedProfile by remember { mutableStateOf("profilegrey") }
+
+                LaunchedEffect(userId) {
+                    if (!isGuest) {
+                        dbRef.child("userProfile").get().addOnSuccessListener {
+                            selectedProfile = it.getValue(String::class.java) ?: "profilegrey"
+                        }
+                    }
+                }
+
+                val profileDrawable = when (selectedProfile) {
+                    "profilered" -> R.drawable.profilered
+                    "profilepurple" -> R.drawable.profilepurple
+                    "profilepink" -> R.drawable.profilepink
+                    "profileblue" -> R.drawable.profileblue
+                    else -> R.drawable.profilegrey
+                }
+
                 Image(
-                    painter = painterResource(id = R.drawable.ezsalelogo1),
-                    contentDescription = "App Logo",
+                    painter = painterResource(id = profileDrawable),
+                    contentDescription = "User Profile",
                     modifier = Modifier
-                        .size(300.dp)
+                        .size(200.dp)
                         .padding(bottom = 16.dp)
-                        .let {
-                            if (displayName == "Guest") {
-                                it.padding(top = 32.dp) // Push logo higher for guest users
-                            } else {
-                                it
+                )
+                if (!isGuest) {
+                    Text("Choose your profile color:", style = MaterialTheme.typography.bodyMedium)
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    var dropdownExpanded by remember { mutableStateOf(false) }
+
+                    val colorLabels = mapOf(
+                        "profilegrey" to "Grey",
+                        "profilered" to "Red",
+                        "profilepurple" to "Purple",
+                        "profilepink" to "Pink",
+                        "profileblue" to "Green"
+                    )
+
+                    Box {
+                        Button(onClick = { dropdownExpanded = true }) {
+                            Text("Selected: ${colorLabels[selectedProfile] ?: "Grey"}")
+                        }
+
+                        DropdownMenu(
+                            expanded = dropdownExpanded,
+                            onDismissRequest = { dropdownExpanded = false }
+                        ) {
+                            profileOptions.forEach { option ->
+                                DropdownMenuItem(
+                                    text = { Text(text = colorLabels[option] ?: option) },
+                                    onClick = {
+                                        selectedProfile = option
+                                        dbRef.child("userProfile").setValue(option)
+                                        dropdownExpanded = false
+                                    }
+                                )
                             }
                         }
-                )
-
+                    }
+                }
+                Spacer(modifier = Modifier.height(20.dp))
                 // Check if the user is logged in as a guest
                 if (displayName == "Guest") {
                     // Guest User - Only Sign In option
@@ -136,7 +191,7 @@ fun ProfileScreen(navController: NavHostController) {
                         ) {
                             Text(text = "Create a Listing")
                         }
-                        Spacer(modifier = Modifier.height(20.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
                         // My Listings Button
                         Button(
                             onClick = { navController.navigate("MyListingsScreen") },
@@ -144,7 +199,15 @@ fun ProfileScreen(navController: NavHostController) {
                         ) {
                             Text(text = "My Listings")
                         }
-                        Spacer(modifier = Modifier.height(20.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Button(
+                            onClick = { navController.navigate("SavedListingsScreen") },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Saved Listings")
+                        }
+                        Spacer(modifier = Modifier.height(10.dp))
 
                         Button(
                             onClick = { navController.navigate("MyMessageScreen") },
@@ -152,7 +215,7 @@ fun ProfileScreen(navController: NavHostController) {
                         ) {
                             Text("My Messages")
                         }
-                        Spacer(modifier = Modifier.height(20.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
                         // Log Out Button
                         Button(
                             onClick = {
