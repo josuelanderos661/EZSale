@@ -10,5 +10,8 @@ data class Listing(
     val userId: String = "",
     val imageUrl: String = "",
     val imagePath: String = "",
-    val location: String = ""
+    val location: String = "",
+    val userProfile: String = "",
+    val sold: Boolean = false,
+    val pending: Boolean = false
 )

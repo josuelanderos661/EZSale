@@ -4,6 +4,7 @@ import android.util.Log
 import android.widget.ImageView
 import android.widget.Toast
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -12,8 +13,10 @@ import androidx.compose.material.DropdownMenuItem
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -29,6 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -59,6 +63,33 @@ fun ListingsScreen(navController: NavHostController) {
     var selectedCondition by remember { mutableStateOf("") }
     var filterHeaderExpanded by remember { mutableStateOf(false) }
     var selectedLocation by remember { mutableStateOf("") }
+    var isLoading by remember { mutableStateOf(true) }
+
+
+
+    var profileIconRes by remember { mutableStateOf(R.drawable.profilegrey) }
+    val userId = Firebase.auth.currentUser?.uid
+
+    LaunchedEffect(userId) {
+        if (userId != null) {
+            Firebase.database.reference.child("users").child(userId)
+                .child("userProfile")
+                .get()
+                .addOnSuccessListener { snapshot ->
+                    val selectedProfile = snapshot.getValue(String::class.java)
+                    profileIconRes = when (selectedProfile) {
+                        "profilered" -> R.drawable.profilered
+                        "profilepurple" -> R.drawable.profilepurple
+                        "profilepink" -> R.drawable.profilepink
+                        "profileblue" -> R.drawable.profileblue
+                        else -> R.drawable.profilegrey
+                    }
+                }
+                .addOnFailureListener {
+                    profileIconRes = R.drawable.profilegrey
+                }
+        }
+    }
 
     LaunchedEffect(Unit) {
         database.addValueEventListener(object : ValueEventListener {
@@ -71,7 +102,10 @@ fun ListingsScreen(navController: NavHostController) {
                 }
                 listings = newListings
                 filteredListings = filterListings(listings, selectedCategory, selectedPrice, selectedCondition, selectedLocation)
+                isLoading = false
             }
+
+
 
             override fun onCancelled(error: DatabaseError) {
                 Log.e("ListingsScreen", "Database error: ${error.message}")
@@ -79,132 +113,123 @@ fun ListingsScreen(navController: NavHostController) {
         })
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Listings") },
-                actions = {
-                    IconButton(onClick = { navController.navigate("ProfileScreen") }) {
-                        Image(
-                            painter = rememberAsyncImagePainter(model = R.drawable.userlogo1),
-                            contentDescription = "User Profile",
-                            modifier = Modifier.size(32.dp)
-                        )
+    ModernAppTheme {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text("Listings", style = MaterialTheme.typography.titleLarge) },
+                    actions = {
+                        IconButton(onClick = { navController.navigate("ProfileScreen") }) {
+                            Image(
+                                painter = painterResource(id = profileIconRes),
+                                contentDescription = "User Profile",
+                                modifier = Modifier.size(32.dp)
+                            )
+                        }
                     }
-                }
-            )
-        }
-    ) { paddingValues ->
-        Box(modifier = Modifier
-            .fillMaxSize()
-            .padding(paddingValues)) {
-            Column(modifier = Modifier.fillMaxSize()) {
-                Text(
-                    text = if (filterHeaderExpanded) "Hide Filters" else "Show Filters",
-                    color = MaterialTheme.colorScheme.primary,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier
-                        .clickable { filterHeaderExpanded = !filterHeaderExpanded }
-                        .padding(16.dp)
                 )
-
-                if (filterHeaderExpanded) {
-                    Column(
+            }
+        ) { paddingValues ->
+            Box(modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)) {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    Text(
+                        text = if (filterHeaderExpanded) "Hide Filters" else "Show Filters",
+                        color = MaterialTheme.colorScheme.primary,
+                        style = MaterialTheme.typography.bodyLarge,
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        FilterDropdown("Category", selectedCategory,
-                            listOf("Electronics", "Furniture", "Video Games", "Clothing & Accessories",
-                                "Home & Kitchen", "Toys & Games", "Tools & Garden", "Sports & Outdoors",
-                                "Books, Movies & Music", "Baby & Kids", "Miscellaneous")
-                        ) {
-                            selectedCategory = it
-                        }
+                            .clickable { filterHeaderExpanded = !filterHeaderExpanded }
+                            .padding(16.dp)
+                    )
 
-                        FilterDropdown("Price", selectedPrice,
-                            listOf("Select Price", "Under $50", "$50 - $100", "$100 - $200", "Over $200")
-                        ) {
-                            selectedPrice = it
-                        }
-
-                        FilterDropdown("Condition", selectedCondition,
-                            listOf("Select Condition", "New", "Like New", "Good", "Fair")
-                        ) {
-                            selectedCondition = it
-                        }
-
-                        FilterDropdown(
-                            "Location",
-                            selectedLocation,
-                            listOf("Santa Barbara", "Ventura", "Camarillo", "Oxnard")
-                        ) {
-                            selectedLocation = it
-                        }
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        Text(
-                            text = "Clear Filters",
-                            color = MaterialTheme.colorScheme.primary,
-                            style = MaterialTheme.typography.bodyMedium,
+                    if (filterHeaderExpanded) {
+                        Column(
                             modifier = Modifier
-                                .clickable {
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            FilterDropdown("Category", selectedCategory,
+                                listOf("Electronics", "Furniture", "Video Games", "Clothing & Accessories",
+                                    "Home & Kitchen", "Toys & Games", "Tools & Garden", "Sports & Outdoors",
+                                    "Books, Movies & Music", "Baby & Kids", "Miscellaneous")
+                            ) { selectedCategory = it }
+
+                            FilterDropdown("Price", selectedPrice,
+                                listOf("Select Price", "Under $50", "$50 - $100", "$100 - $200", "Over $200")
+                            ) { selectedPrice = it }
+
+                            FilterDropdown("Condition", selectedCondition,
+                                listOf("Select Condition", "New", "Like New", "Good", "Fair")
+                            ) { selectedCondition = it }
+
+                            FilterDropdown("Location", selectedLocation,
+                                listOf("Santa Barbara", "Ventura", "Camarillo", "Oxnard")
+                            ) { selectedLocation = it }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            Text(
+                                text = "Clear Filters",
+                                color = MaterialTheme.colorScheme.primary,
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier
+                                    .clickable {
+                                        selectedCategory = ""
+                                        selectedLocation = ""
+                                        selectedPrice = ""
+                                        selectedCondition = ""
+                                        filteredListings = listings
+                                    }
+                                    .padding(16.dp)
+                            )
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            Text(
+                                text = "Search",
+                                color = MaterialTheme.colorScheme.primary,
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier
+                                    .clickable {
+                                        filteredListings = filterListings(listings, selectedCategory, selectedPrice, selectedCondition, selectedLocation)
+                                        filterHeaderExpanded = false
+                                    }
+                                    .padding(16.dp)
+                            )
+                        }
+                    }
+
+                    if (isLoading) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator()
+                        }
+                    } else if (filteredListings.isEmpty()) {
+                        Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+                            Text(
+                                text = "No listings match this criteria.",
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Button(
+                                onClick = {
                                     selectedCategory = ""
-                                    selectedLocation = ""
                                     selectedPrice = ""
                                     selectedCondition = ""
+                                    selectedLocation = ""
                                     filteredListings = listings
-                                }
-                                .padding(16.dp)
-                        )
-
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        // Add the clickable "Search" text here
-                        Text(
-                            text = "Search",
-                            color = MaterialTheme.colorScheme.primary,
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier
-                                .clickable {
-                                    // Trigger search (filtering listings) when clicked
-                                    filteredListings = filterListings(listings, selectedCategory, selectedPrice, selectedCondition, selectedLocation)
-                                    filterHeaderExpanded = false // Collapse filter menu
-                                }
-                                .padding(16.dp)
-                        )
-                    }
-                }
-
-                // Button to return to all listings when no filtered listings
-                if (filteredListings.isEmpty()) {
-                    Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-                        Text(
-                            text = "No listings match this criteria.",
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-                        Spacer(modifier = Modifier.height(10.dp))
-                        Button(
-                            onClick = {
-                                // Reset filters to default values
-                                selectedCategory = ""
-                                selectedPrice = ""
-                                selectedCondition = ""
-                                selectedLocation = ""
-
-                                // Reset the filtered listings to all listings
-                                filteredListings = listings
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(text = "Return to Listings")
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(text = "Return to Listings")
+                            }
                         }
-                    }
-                } else {
-                    LazyColumn(modifier = Modifier.fillMaxSize()) {
-                        items(filteredListings) { listing ->
-                            ListingItem(listing = listing, currentUserId = currentUserId, navController = navController)
+                    } else {
+                        LazyColumn(modifier = Modifier.fillMaxSize()) {
+                            items(filteredListings) { listing ->
+                                ListingItem(listing = listing, currentUserId = currentUserId, navController = navController)
+                            }
                         }
                     }
                 }
@@ -283,105 +308,193 @@ fun ListingItem(
     Log.d("ListingsScreen", "Displaying listing: $listing")
     var isImageClicked by remember { mutableStateOf(false) }
     val imageHeight = if (isImageClicked) 400.dp else 200.dp
-    val context = LocalContext.current // For Toast messages
+    val context = LocalContext.current
 
-    // Debugging: Log listing details
-    Log.d("ListingItem", "Listing ID: ${listing.id}, User ID: ${listing.userId}, Title: ${listing.title}")
+    // Firebase reference for saving
+    val savedRef = remember { Firebase.database.reference.child("savedListings") }
 
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(8.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-    ) {
-        Column(
+    var isSaved by remember { mutableStateOf(false) }
+
+    // Check if listing is saved
+    LaunchedEffect(currentUserId, listing.id) {
+        if (currentUserId != null) {
+            savedRef.child(currentUserId).child(listing.id).get()
+                .addOnSuccessListener { snapshot ->
+                    isSaved = snapshot.exists()
+                }
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxWidth()) {
+        Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .padding(8.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
         ) {
-            if (listing.imageUrl.isNotEmpty()) {
-                // Force image refresh by using the listing ID as a key
-                AndroidView(
-                    factory = { context ->
-                        ImageView(context).apply {
-                            Glide.with(context)
-                                .load(listing.imageUrl)
-                                .into(this)
-                        }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(imageHeight)
-                        .clickable {
-                            isImageClicked = !isImageClicked
-                        },
-                    update = { view ->
-                        // Using a unique key to force reload the image
-                        Glide.with(view.context).load(listing.imageUrl).into(view)
-                    }
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-            }
-
-            // Display the price with a floating dot and title
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
             ) {
-                // Price with the dot in the middle
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = "$${listing.price}",
-                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Normal)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp)) // Space between price and dot
-                    Text(
-                        text = "•",
-                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Normal)
-                    ) // The dot
-                    Spacer(modifier = Modifier.width(4.dp)) // Space between dot and title
-                }
-
-                // Title displayed to the right
-                Text(
-                    text = listing.title,
-                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Normal),
-                    modifier = Modifier.weight(1f)
-                )
-            }
-
-            // Show other details when the image is clicked
-            if (isImageClicked) {
-                Text(text = "Category: ${listing.category}", style = MaterialTheme.typography.bodyMedium)
-                Text(text = "Condition: ${listing.condition}", style = MaterialTheme.typography.bodyMedium)
-                Text(text = "Location: ${listing.location}", style = MaterialTheme.typography.bodyMedium)
-                Text(text = "Description: ${listing.description}", style = MaterialTheme.typography.bodyMedium)
-            }
-
-            // Row for the message icon
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
-            ) {
-                if (currentUserId == null || listing.userId != currentUserId) {
-                    Image(
-                        painter = rememberAsyncImagePainter(R.drawable.ic_message),
-                        contentDescription = "Message Seller",
+                if (listing.imageUrl.isNotEmpty()) {
+                    Box(
                         modifier = Modifier
-                            .size(45.dp)  // Customize size as needed
-                            .clickable {
-                                if (currentUserId == null) {
-                                    Toast.makeText(context, "You must be signed in to use this feature", Toast.LENGTH_SHORT).show()
-                                } else {
-                                    Log.d("ListingsScreen", "Navigating to ChatScreen with listingId: ${listing.id}, title: ${listing.title}, userId: ${listing.userId}, price: ${listing.price}")
-                                    // Pass listingId, title, userId, and price to the ChatScreen
-                                    navController.navigate("ChatScreen/${listing.id}/${listing.title}/${listing.userId}/${listing.price}")
+                            .fillMaxWidth()
+                            .height(imageHeight)
+                            .clickable { isImageClicked = !isImageClicked }
+                    ) {
+                        AndroidView(
+                            factory = { context ->
+                                ImageView(context).apply {
+                                    Glide.with(context)
+                                        .load(listing.imageUrl)
+                                        .into(this)
                                 }
+                            },
+                            modifier = Modifier
+                                .fillMaxSize(),
+                            update = { view ->
+                                Glide.with(view.context).load(listing.imageUrl).into(view)
                             }
-                    )
+                        )
 
+                        // ✅ SOLD overlay (full greyed out)
+                        if (listing.sold) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(Color.Black.copy(alpha = 0.4f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "SOLD",
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Black)
+                                )
+                            }
+                        }
+
+                        // ✅ PENDING overlay (bottom half only)
+                        else if (listing.pending) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(imageHeight / 2)
+                                    .align(Alignment.BottomCenter)
+                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "PENDING",
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f)
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "$${listing.price}",
+                            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Normal)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "•",
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Normal)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                    }
+                    Text(
+                        text = listing.title,
+                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Normal),
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
+                if (isImageClicked) {
+                    Text("Category: ${listing.category}", style = MaterialTheme.typography.bodyMedium)
+                    Text("Condition: ${listing.condition}", style = MaterialTheme.typography.bodyMedium)
+                    Text("Location: ${listing.location}", style = MaterialTheme.typography.bodyMedium)
+                    Text("Description: ${listing.description}", style = MaterialTheme.typography.bodyMedium)
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    if (currentUserId == null || listing.userId != currentUserId) {
+                        Image(
+                            painter = rememberAsyncImagePainter(R.drawable.ic_message),
+                            contentDescription = "Message Seller",
+                            modifier = Modifier
+                                .size(45.dp)
+                                .clickable {
+                                    if (currentUserId == null) {
+                                        Toast.makeText(context, "You must be signed in to use this feature", Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        navController.navigate("ChatScreen/${listing.id}/${listing.title}/${listing.userId}/${listing.price}")
+                                    }
+                                }
+                        )
+                    }
                 }
             }
+        }
+
+        // ⭐ Save Icon (top-right)
+        if (currentUserId != null && currentUserId != listing.userId) {
+            IconButton(
+                onClick = {
+                    val ref = savedRef.child(currentUserId).child(listing.id)
+                    if (isSaved) {
+                        ref.removeValue().addOnCompleteListener {
+                            if (it.isSuccessful) isSaved = false
+                        }
+                    } else {
+                        ref.setValue(true).addOnCompleteListener {
+                            if (it.isSuccessful) isSaved = true
+                        }
+                    }
+                },
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(10.dp)
+                    .size(24.dp) // slightly smaller for a cleaner look
+            ) {
+                Icon(
+                    painter = painterResource(
+                        id = if (isSaved) R.drawable.ic_star_filled else R.drawable.ic_star_outline
+                    ),
+                    contentDescription = "Save Listing",
+                    tint = if (isSaved) Color(0xFFFFD700) else Color(0x66808080) // 40% grey
+                )
+            }
+        } else if (currentUserId == null) {
+            // If guest, still show a disabled-looking star for visual consistency
+            Icon(
+                painter = painterResource(id = R.drawable.ic_star_outline),
+                contentDescription = "Sign in to Save",
+                tint = Color(0x33808080), // 20% opacity grey
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(10.dp)
+                    .size(24.dp)
+                    .clickable {
+                        Toast.makeText(context, "You must be signed in to save listings", Toast.LENGTH_SHORT).show()
+                    }
+            )
         }
     }
 }

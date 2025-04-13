@@ -60,6 +60,9 @@ class MainActivity : ComponentActivity() {
                         composable("MyMessageScreen") {
                             MyMessageScreen(navController = navController)
                         }
+                        composable("SavedListingsScreen") {
+                            SavedListingsScreen(navController = navController)
+                        }
 
                         composable("EditListingScreen/{listingId}") { backStackEntry ->
                             val listingId = backStackEntry.arguments?.getString("listingId") ?: ""
