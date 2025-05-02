@@ -78,7 +78,9 @@ fun NewUserScreen(navController: NavHostController) {
                             isLoading = false
                             if (task.isSuccessful) {
                                 Toast.makeText(context, "Account Created Successfully!", Toast.LENGTH_SHORT).show()
-                                navController.navigate("LoginScreen") // Navigate to login
+                                navController.navigate("ProfileScreen") {
+                                    popUpTo("NewUser") { inclusive = true }
+                                }
                             } else {
                                 Toast.makeText(context, "Sign-up failed: ${task.exception?.message}", Toast.LENGTH_LONG).show()
                             }

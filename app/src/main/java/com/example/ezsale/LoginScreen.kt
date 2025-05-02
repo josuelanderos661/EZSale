@@ -53,7 +53,6 @@ fun LoginScreen(navController: NavHostController) {
             textAlign = TextAlign.Center
         )
 
-        // Email Input Field
         OutlinedTextField(
             value = email,
             onValueChange = { email = it },
@@ -63,7 +62,6 @@ fun LoginScreen(navController: NavHostController) {
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Password Input Field
         OutlinedTextField(
             value = password,
             onValueChange = { password = it },
@@ -74,7 +72,6 @@ fun LoginScreen(navController: NavHostController) {
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // Login Button
         Button(
             onClick = {
                 isLoading = true
@@ -82,10 +79,10 @@ fun LoginScreen(navController: NavHostController) {
                     .addOnCompleteListener { task ->
                         isLoading = false
                         if (task.isSuccessful) {
-                            val user = auth.currentUser
+                            val user = task.result.user
                             userToken = user?.uid
                             Toast.makeText(context, "Login Successful", Toast.LENGTH_SHORT).show()
-                            navController.navigate("ProfileScreen") // Navigate to profile screen
+                            navController.navigate("ProfileScreen")
                         } else {
                             Toast.makeText(
                                 context,
@@ -103,7 +100,6 @@ fun LoginScreen(navController: NavHostController) {
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // New User? Sign Up Button
         TextButton(
             onClick = { navController.navigate("NewUser") },
             modifier = Modifier.fillMaxWidth()
